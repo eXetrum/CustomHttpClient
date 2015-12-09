@@ -1,0 +1,9 @@
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\bin\Debug\CustomHttpClient.exe.config
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\bin\Debug\CustomHttpClient.exe
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\bin\Debug\CustomHttpClient.pdb
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.Properties.Resources.resources
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.UserInterface.resources
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.csproj.GenerateResource.Cache
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.exe
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.pdb
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.csprojResolveAssemblyReference.cache

@@ -1,0 +1,8 @@
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\bin\Release\CustomHttpClient.exe.config
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\bin\Release\CustomHttpClient.exe
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\bin\Release\CustomHttpClient.pdb
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Release\CustomHttpClient.Properties.Resources.resources
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Release\CustomHttpClient.UserInterface.resources
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Release\CustomHttpClient.csproj.GenerateResource.Cache
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Release\CustomHttpClient.exe
+D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Release\CustomHttpClient.pdb
