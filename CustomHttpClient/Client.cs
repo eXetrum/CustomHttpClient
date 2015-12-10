@@ -11,122 +11,6 @@ using System.Threading.Tasks;
 
 namespace CustomHttpClient
 {
-    class ChunkedStream : Stream
-    {
-        private readonly Stream innerStream;
-
-        internal ChunkedStream(Stream innerStream)
-        {
-            if (!innerStream.CanRead)
-                throw new ArgumentException();
-            this.innerStream = innerStream;
-        }
-
-
-        int currentChunk = -1;
-
-        int currentChunkReaded;
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            if (currentChunk == 0)
-                return 0;
-
-            if (currentChunk == -1 || currentChunk == currentChunkReaded)
-                ReadNextChunkDeclaration();
-
-            if (currentChunk == 0)
-                return 0;
-
-            int result = innerStream.Read(buffer, offset, Math.Min(count, currentChunk - currentChunkReaded));
-
-            currentChunkReaded += result;
-            return result;
-        }
-
-        private void ReadNextChunkDeclaration()
-        {
-            int result;
-            while (true)
-            {
-                string temp = ReadLine();
-
-                if (int.TryParse(temp.Trim(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out result))
-                {
-                    currentChunk = result;
-                    currentChunkReaded = 0;
-                    return;
-                }
-            }
-        }
-
-        private string ReadLine()
-        {
-            string result = "";
-            while (!result.EndsWith("\r\n"))
-            {
-                int b = innerStream.ReadByte();
-                if (b == -1)
-                    return result;
-                result += (char)b;
-            }
-            return result.Substring(0, result.Length - 2);
-        }
-
-        public override bool CanRead
-        {
-            get { return true; }
-        }
-
-        public override bool CanSeek
-        {
-            get { return false; }
-        }
-
-        public override bool CanWrite
-        {
-            get { return false; }
-        }
-
-        public override void Flush()
-        {
-            throw new NotSupportedException();
-        }
-
-        public override long Length
-        {
-            get { throw new NotSupportedException(); }
-        }
-
-        public override long Position
-        {
-            get
-            {
-                throw new NotSupportedException();
-            }
-            set
-            {
-                throw new NotSupportedException();
-            }
-        }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
-    }
-
-
     class StateObject
     {
         // Client socket.
@@ -140,23 +24,6 @@ namespace CustomHttpClient
 
         public List<byte> receivedData = new List<byte>();
     }
-
-    static class Ext
-    {
-        public static int SubListIndex<T>(this IList<T> list, int start, IList<T> sublist)
-        {
-            for (int listIndex = start; listIndex < list.Count - sublist.Count + 1; listIndex++)
-            {
-                int count = 0;
-                while (count < sublist.Count && sublist[count].Equals(list[listIndex + count]))
-                    count++;
-                if (count == sublist.Count)
-                    return listIndex;
-            }
-            return -1;
-        }
-    }
-
     // Класс клиента используем для обмена приватными сообщениями
     public class Client
     {
@@ -211,7 +78,27 @@ namespace CustomHttpClient
         private static Response response;
 
         public static string AcceptPage = "text/html,application/xhtml+xml,text/plain,application/xml;q=0.9";//,*/*;q=0.8";
-        public static string AcceptImage = "image/gif, image/jpeg, image/pjpeg, image/png, */*";         
+        public static string AcceptImage = "image/gif, image/jpeg, image/pjpeg, image/png, */*";
+
+        public static IPAddress GetIpAddress(string tryParseThis)
+        {
+            try
+            {
+                return Dns.GetHostEntry(IPAddress.Parse(tryParseThis)).AddressList[0];
+
+            }
+            catch { }
+
+            try
+            {
+                return Dns.GetHostEntry(tryParseThis).AddressList[0];
+            }
+            catch { }
+
+            return null;
+        }
+
+        public IPAddress IP;
 
         // Конструктор клиента, принимает адрес удаленного узла и используемый сервером порт (по умолчанию задаем 80)
         public Client(Uri remoteUri, int port = 80)
@@ -238,12 +125,13 @@ namespace CustomHttpClient
             Headers.Add("Expires", "0");
 
             IPHostEntry ipHostInfo = Dns.GetHostEntry(Host);
-            IPAddress ipAddress = ipHostInfo.AddressList[0];
-            remoteEP = new IPEndPoint(ipAddress, Port);
+            IP = ipHostInfo.AddressList[0];
+            remoteEP = new IPEndPoint(IP, Port);
             // Кодировка
             encoding = Encoding.UTF8;
         }        
 
+        
         public Response MakeRequest(Uri uri, bool page = true)
         {
             encoding = Encoding.UTF8;
@@ -259,8 +147,16 @@ namespace CustomHttpClient
             StateObject so = new StateObject();
             so.workSocket = clientSocket;
 
-            IPHostEntry ipHostInfo = Dns.GetHostEntry(uri.Host);
-            IPAddress ipAddress = ipHostInfo.AddressList[0];
+            
+            if (uri.Port == 443)
+            {
+                Console.WriteLine("SSL found");
+                //Console.ReadKey();
+            }
+
+            //IPHostEntry ipHostInfo = Dns.GetHostEntry(uri.Host);
+            //IPAddress ipAddress = ipHostInfo.AddressList[0];
+            IPAddress ipAddress = GetIpAddress(uri.Host);
             IPEndPoint remoteEP = new IPEndPoint(ipAddress, Port);
 
             Console.WriteLine("Connect to [" + remoteEP.ToString() + "] ...");
@@ -347,7 +243,10 @@ namespace CustomHttpClient
 
                 Console.WriteLine("Received headers size=" + headerData.Count);
                 Console.WriteLine(new string('-', 40));
-                Console.WriteLine(encoding.GetString(headerData.ToArray()));               
+                Console.WriteLine(encoding.GetString(headerData.ToArray()));
+
+                if (response.Headers.ContainsKey("Content-Type".ToLower()) && response.Headers["Content-Type".ToLower()].Equals("application/pdf"))
+                    return null;
                 // Если запрашиваем изображения - на данном этапе заголовки получены из них вытащим размер изображения
                 // Так что тело ответа не используем
                 if (!page)
@@ -562,9 +461,7 @@ namespace CustomHttpClient
                     clientSocket = null;
                 }
             }
-            catch (Exception ex) {
-                //Console.ReadKey();
-            }
+            catch {}
         }
 
         private void DisconnectCallback(IAsyncResult ar)
@@ -585,158 +482,8 @@ namespace CustomHttpClient
                 // Signal that the disconnect is complete.
                 disconnectDone.Set();
             }
-            catch (Exception ex)
-            {
-                Console.ReadKey();
-            }
-        }
-
-        // Сменить текущий каталог
-        public void ChangeDir(string newDir)
-        {
-            //CurrentPath = newDir;
-        }
-        // Отправить содержимое текущей папки в которой находится пользователь
-        //public void SendFolders()
-        //{
-        //    // Список информации о файлах и папках
-        //    List<FileSystemInfo> files = new List<FileSystemInfo>();
-        //    // Получаем инфо о текущем каталоге
-        //    DirectoryInfo df = new DirectoryInfo(CurrentPath);
-        //    // Запоминаем каталог родитель для текущего каталога
-        //    files.Add(df.Parent);
-        //    // Перечисляем все файлы и папки и заносим их в список
-        //    foreach (var d in df.EnumerateDirectories())
-        //        files.Add(d);
-        //    foreach (var d in df.EnumerateFiles())
-        //        files.Add(d);
-        //    // Формируем данные для отправки преобразуя список файлов в массив байт
-        //    byte[] data = Packet.ObjectToByteArray(files);
-        //    // Создаем пакет для отправки, тип ответного сообщения "LIST" (получение списка файлов и папок)
-        //    Packet p = new Packet(MSG_TYPE.LIST, data);
-        //    // Отправляем пакет
-        //    SendData(p);
-        //}
-        // Отправить данные
-        //public int SendData(Packet p)
-        //{
-        //    // Преобразуем пакет в массив байт
-        //    Byte[] data = Packet.ObjectToByteArray(p);
-        //    // Отправляем размер пакета
-        //    clientSocket.Send(BitConverter.GetBytes(data.Length), 0, 4, SocketFlags.None);
-        //    // Отправляем тело пакета
-        //    int byteSend = clientSocket.Send(data, 0, data.Length, SocketFlags.None);
-        //    // Вернем количество отправленных данных
-        //    return byteSend;
-        //}
-        // Начало приема данных всегда начинается с кусочка о размере последующих данных
-        //void receiveCallback(IAsyncResult ar)
-        //{
-        //    try
-        //    {
-        //        // Получаем количество переданных данных
-        //        int rec = clientSocket.EndReceive(ar);
-        //        // Если передано нуль
-        //        if (rec == 0)
-        //        {
-        //            // Отключаем клиента 
-        //            if (Disconnected != null)
-        //            {
-        //                Disconnected(this);
-        //                Close();
-        //                return;
-        //            }
-        //            // Если размер принятых данных не равен 4 (все пересылки сообщений начинаются с их отправки 4-х байт размера этих сообщений)
-        //            if (rec != 4)
-        //            {
-        //                throw new Exception("Error file size header");
-        //            }
-        //        }
-        //    }
-        //    // Отлавливаем ошибки
-        //    catch (SocketException se)
-        //    {
-        //        switch (se.SocketErrorCode)
-        //        {
-        //            case SocketError.ConnectionAborted:
-        //            case SocketError.ConnectionReset:
-        //                if (Disconnected != null)
-        //                {
-        //                    Disconnected(this);
-        //                    Close();
-        //                    return;
-        //                }
-        //                break;
-        //        }
-        //    }
-        //    catch (ObjectDisposedException) { return; }
-        //    catch (NullReferenceException) { return; }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine("Client reciveAsync: " + ex.Message);
-        //        return;
-        //    }
-        //    // Если размер сообщения принят без ошибок - создаем буфер приема
-        //    buffer = new ReceiveBuffer(BitConverter.ToInt32(lenBuffer, 0));
-        //    // Запускаем ассинхронный прием пакета данных заданного размера
-        //    clientSocket.BeginReceive(buffer.Buffer, 0, buffer.Buffer.Length, SocketFlags.None, new AsyncCallback(receivePacketCallback), null);
-        //}
-        //// Калбек функция приема пакета
-        //void receivePacketCallback(IAsyncResult ar)
-        //{
-        //    // Получаем размер данных
-        //    int rec = clientSocket.EndReceive(ar);
-        //    if (rec <= 0)
-        //    {
-        //        // Отключаем клиента
-        //        if (Disconnected != null)
-        //            Disconnected(this);
-        //        // Закрываем сокет и освобождаем все неиспользуемые объекты
-        //        Close(); return;
-        //    }
-        //    // Добавляем принятые данные в поток
-        //    buffer.memStream.Write(buffer.Buffer, 0, rec);
-        //    // Уменьшаем количество необходимых для приема данных
-        //    buffer.ToReceive -= rec;
-        //    // Если еще не все приняли
-        //    if (buffer.ToReceive > 0)
-        //    {
-        //        // Очищаем маленький буфер приема
-        //        Array.Clear(buffer.Buffer, 0, buffer.Buffer.Length);
-        //        // Запускаем дальнешую процедуру приема
-        //        clientSocket.BeginReceive(buffer.Buffer, 0, buffer.Buffer.Length, SocketFlags.None, receivePacketCallback, null);
-        //        return;
-        //    }
-        //    // Если все приняли - проверим есть ли обработчик события приема
-        //    if (Received != null)
-        //    {
-        //        // Получаем весь принятый массив байт
-        //        byte[] totalReceived = buffer.memStream.ToArray();
-        //        // Формируем полученный пакет, предварительно расшифровав его
-        //        Packet receivedPacket = (Packet)Packet.ByteArrayToObject(totalReceived);
-        //        // Генерируем событие приема
-        //        Received(this, receivedPacket);
-        //    }
-        //    buffer.Dispose();
-        //    // Принимаем данные асинхронно
-        //    clientSocket.BeginReceive(lenBuffer, 0, lenBuffer.Length, SocketFlags.None, new AsyncCallback(receiveCallback), null);
-        //}
-        //// Метод освобождения ресурсов
-        //public void Close()
-        //{
-        //    // Закрываем сокет
-        //    if (clientSocket != null)
-        //    {
-        //        clientSocket.Shutdown(SocketShutdown.Both);
-        //        clientSocket.Close();
-        //    }
-        //    // Обнуляем все переменные чтобы сборщик мусора сделал свою работу
-        //    clientSocket = null;
-        //    if (buffer != null)
-        //        buffer.Dispose();
-        //    lenBuffer = null;
-        //    Disconnected = null;
-        //    Received = null;
-        //}
+            catch {}
+        } 
     }
+
 }

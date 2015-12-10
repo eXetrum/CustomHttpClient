@@ -81,7 +81,7 @@
             this.txtBoxUrl.Name = "txtBoxUrl";
             this.txtBoxUrl.Size = new System.Drawing.Size(99, 20);
             this.txtBoxUrl.TabIndex = 0;
-            this.txtBoxUrl.Text = "ssau.ru";
+            this.txtBoxUrl.Text = "tass.ru";
             this.txtBoxUrl.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.txtBoxUrl.TextChanged += new System.EventHandler(this.txtBoxUrl_TextChanged);
             // 
@@ -195,6 +195,7 @@
             this.listViewOutbound.TabIndex = 7;
             this.listViewOutbound.UseCompatibleStateImageBehavior = false;
             this.listViewOutbound.View = System.Windows.Forms.View.Details;
+            this.listViewOutbound.DoubleClick += new System.EventHandler(this.listViewOutbound_DoubleClick);
             // 
             // colRemoteTitle
             // 

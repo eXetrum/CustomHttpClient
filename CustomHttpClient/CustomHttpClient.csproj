@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Client.cs" />
+    <Compile Include="LinkFinder.cs" />
     <Compile Include="Response.cs" />
     <Compile Include="UserInterface.cs">
       <SubType>Form</SubType>
