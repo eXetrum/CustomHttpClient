@@ -56,9 +56,11 @@
             // 
             // txtLogBox
             // 
+            this.txtLogBox.BackColor = System.Drawing.SystemColors.ButtonHighlight;
             this.txtLogBox.Location = new System.Drawing.Point(12, 504);
             this.txtLogBox.Multiline = true;
             this.txtLogBox.Name = "txtLogBox";
+            this.txtLogBox.ReadOnly = true;
             this.txtLogBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.txtLogBox.Size = new System.Drawing.Size(198, 141);
             this.txtLogBox.TabIndex = 4;
@@ -257,9 +259,11 @@
             // 
             // txtQueue
             // 
+            this.txtQueue.BackColor = System.Drawing.SystemColors.ControlLightLight;
             this.txtQueue.Location = new System.Drawing.Point(216, 506);
             this.txtQueue.Multiline = true;
             this.txtQueue.Name = "txtQueue";
+            this.txtQueue.ReadOnly = true;
             this.txtQueue.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.txtQueue.Size = new System.Drawing.Size(337, 141);
             this.txtQueue.TabIndex = 11;

@@ -19,12 +19,6 @@ namespace CustomHttpClient
     {
         // Прикинемся "огнелисом"
         string UserAgent = "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:44.0) Gecko/20100101 Firefox/44.0";
-        // Аксецптим такой набор
-        //string Accept = "text/html,application/xhtml+xml,application/xml;q=0.9, image/png, image/gif, image/jpeg, image/pjpeg;q=0.8, */*;q=0.7";
-        string Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
-
-        // Если используем прокси 
-        //WebProxy proxy = null;//new WebProxy("127.0.0.1", 8888);
 
         Thread workrerThread = null;
         ManualResetEvent workEvent = new ManualResetEvent(false);
@@ -34,25 +28,21 @@ namespace CustomHttpClient
         {
             InitializeComponent();
             // Проверяем строку адреса и если валидная - включим кнопку запуска
-            btnStart.Enabled = Client.GetIpAddress(txtBoxUrl.Text) != null;
-
+            btnStart.Enabled = Client.GetIpAddress(txtBoxUrl.Text) != null; 
             txtBoxPort.ShortcutsEnabled = false;
 
             try
             {
                 // Здаем файл лог
                 tw = new StreamWriter(File.Open("log.txt", FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read));
+                Directory.CreateDirectory("Logs");
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Неудачное создание лог файла" + Environment.NewLine + ex.Message);
-            }
-
-            
+            }            
         }
-
-        
-
+        // Валидация ввода адреса
         public bool IsValidIP(string addr)
         {
             //create our match pattern
@@ -78,7 +68,7 @@ namespace CustomHttpClient
         }
 
         TextWriter tw = null;
-        // Объект синхронизации
+        // Объект синхронизации логера
         private static readonly object _syncObject = new object();
         // Метод потокобезопасного сброса в файл 
         public static void Log(string logMessage, TextWriter w)
@@ -96,171 +86,48 @@ namespace CustomHttpClient
                 w.Flush();
             }
         }
+        
 
-        List<Uri> TryToMakePageUri(Uri workUri, string parsedPageLink)
-        {
-            try
-            {
-                List<Uri> result = new List<Uri>();
-                Uri outUri;
-                // Пробуем построить URI из полученной ссылки
-                if (Uri.TryCreate(parsedPageLink.Trim(), UriKind.Absolute, out outUri))
-                {
-                    // Построили успешно - добавляем к результату
-                    result.Add(outUri);
-                    // Перебираем все сегменты (каталоги) и строим дополнительные ссылки
-                    Queue<string> q = new Queue<string>(outUri.Segments.ToArray().Reverse());
-                    if (q.Count > 0)
-                    {
-                        // Отсекаем последний сегмент
-                        q.Dequeue();
-                        // Перебираем оставшиеся
-                        while (q.Count > 1)
-                        {
-                            Uri subUri;
-                            string nextFolder = "http://" + outUri.Host + string.Join("", q.ToArray().Reverse());
-                            //Console.WriteLine("Subfolder=" + nextFolder);
-                            if (Uri.TryCreate(nextFolder.Trim(), UriKind.Absolute, out subUri))
-                                result.Add(subUri);
-                            q.Dequeue();
-                        }
-                    }
-                }
-                else
-                {
-
-                    if(Uri.TryCreate(workUri, parsedPageLink, out outUri) )
-                    {
-                        result.Add(outUri);
-                    }
-
-                    //Queue<string> q = new Queue<string>(workUri.Segments.ToArray().Reverse());
-                    //int dotIndex = workUri.ToString().LastIndexOf(".");
-                    //if (dotIndex != -1)
-                    //{
-                    //    // Отсекаем последний сегмент
-                    //    if(q.Count > 0)
-                    //        q.Dequeue();
-                    //}
-
-                    //string url1 = "http://" + workUri.Host + string.Join("", q.ToArray().Reverse());//workUri.ToString();
-                    //if (url1.EndsWith("/") && parsedPageLink.StartsWith("/"))
-                    //    url1 = url1.Substring(0, url1.Length - 1) + parsedPageLink;
-                    //else if ((url1.EndsWith("/") && !parsedPageLink.StartsWith("/"))
-                    //    || (!url1.EndsWith("/") && parsedPageLink.StartsWith("/")))
-                    //    url1 = url1 + parsedPageLink;
-                    //else
-                    //    url1 = url1 + "/" + parsedPageLink;
-
-                    //if (Uri.TryCreate(url1.Trim(), UriKind.Absolute, out outUri))
-                    //    result.Add(outUri);
-                    ///////////////////////////////////
-                }
-
-
-                //Console.WriteLine(parsedPageLink);
-                result = result.Distinct().ToList<Uri>();
-                foreach (var r in result)
-                    Console.WriteLine("TryMakeUri=" + r);
-                //Console.ReadKey();
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("TryMakePageUri Error=" + ex.Message + Environment.NewLine + ex.StackTrace);
-                Console.WriteLine(parsedPageLink);
-                //Console.Readkey();,
-            }
-            return null;
-        }
-
-        private List<Uri> TryToMakeImgUri(Uri workUri, string parsedImgLink)
-        {
-            try
-            {
-                List<Uri> result = new List<Uri>();
-                Uri outUri;
-
-                if (Uri.TryCreate(parsedImgLink, UriKind.Absolute, out outUri))
-                {
-                    result.Add(outUri);
-                    return result;
-                }
-                if(Uri.TryCreate(workUri, parsedImgLink, out outUri))
-                {
-                    result.Add(outUri);
-                    return result;
-
-                }
-                return null;
-
-                Queue<string> q = new Queue<string>(workUri.Segments.ToArray().Reverse());
-                int dotIndex = workUri.ToString().LastIndexOf(".");
-                if (q.Count > 0)
-                {
-                    // Отсекаем последний сегмент
-                    q.Dequeue();
-                }
-
-                string url1 = "http://" + workUri.Host + string.Join("", q.ToArray().Reverse());//workUri.ToString();
-                if (url1.EndsWith("/") && parsedImgLink.StartsWith("/"))
-                    url1 = url1.Substring(0, url1.Length - 1) + parsedImgLink;
-                else if ((url1.EndsWith("/") && !parsedImgLink.StartsWith("/"))
-                    || (!url1.EndsWith("/") && parsedImgLink.StartsWith("/")))
-                    url1 = url1 + parsedImgLink;
-                else
-                    url1 = url1 + "/" + parsedImgLink;
-
-                if (Uri.TryCreate(url1.Trim(), UriKind.Absolute, out outUri))
-                    result.Add(outUri);
-
-                string url2 = "http://" + workUri.Host;// + string.Join("", q.ToArray().Reverse());
-                if (url2.EndsWith("/") && parsedImgLink.StartsWith("/"))
-                    url2 = url2.Substring(0, url2.Length - 1) + parsedImgLink;
-                else if ((url2.EndsWith("/") && !parsedImgLink.StartsWith("/"))
-                    || (!url2.EndsWith("/") && parsedImgLink.StartsWith("/")))
-                    url2 = url2 + parsedImgLink;
-                else
-                    url2 = url2 + "/" + parsedImgLink;
-
-                if (Uri.TryCreate(url2, UriKind.Absolute, out outUri))
-                    result.Add(outUri);
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("TryMakeIMG-Uri Error=" + ex.Message);
-                //Console.Readkey();,
-            }
-            return null;
-        }
-
-        static int ImageDelay = 10;
+        // Задержка во время обработки изображений.
+        // Поставим не менее 100 милисекунд, иначе сервер может распознать слишком большое кол-во соедин. за дос атаку и сбрасывать все соединения
+        static int ImageDelay = 100;
+        // Задержка обработки страниц (Запросы для получения страниц).
+        // Эта операция не так часто выполняется так что можно не сильно понижать скорость
         static int PageDelay = 10;
-
+        // Метод в котором выполняется работа
         private void WorkerMethod(object data)
         {
+            // Потоки вывода (будем логировать пройденные ссылки страничные и ссылки на изображения)
             StreamWriter pageDone = null;
             StreamWriter imageDone = null;
 
             try
             {
+                // Создаем потоки вывода и связываем с файлами
                 pageDone = new StreamWriter("PageDone.txt");
                 imageDone = new StreamWriter("ImageDone.txt");
-
+                // Счетчики изображений на/вне сервера
                 int serverImg = 0;
                 int outboundImg = 0;
+                // Порт по умолчанию
                 int port = 80;
+                // Делаем инвок в поток в котором созданы элементы управления (поля ввода/кнопки итд)
                 Invoke(new Action(() =>
                 {
+                    // Получаем значение порта
                     port = int.Parse(txtBoxPort.Text);
+                    // Выключаем кнопку "запуск"
                     btnStart.Enabled = false;
+                    // Включаем кнопку "стоп"
                     btnStop.Enabled = true;
+                    // Выключаем поле ввода адреса
                     txtBoxUrl.Enabled = false;
+                    // Выключаем поле ввода порта
                     txtBoxPort.Enabled = false;
+                    // Очищаем списки
                     listViewServer.Items.Clear();
                     listViewOutbound.Items.Clear();
+                    // Очищаем текстовое поле вывода логов
                     txtLogBox.Clear();
                 }));
                 // Получаем ссылку запрос на страницу
@@ -280,7 +147,6 @@ namespace CustomHttpClient
                 client.Referer = mainRequestUri.Host;
                 client.Headers.Add("Accept-Language", "en-US,en;q=0.5");
 
-                client.Connected += client_Connected;
                 client.Disconnected += client_Disconnected;
                 client.Received += client_Received;
                 client.Sended += client_Sended;
@@ -310,8 +176,10 @@ namespace CustomHttpClient
                         {
                             txtLogBox.AppendText("GET " + currentWorkUri + Environment.NewLine);
                         }));
+                        // Делаем запрос
                         response = client.MakeRequest(currentWorkUri);
                     }
+                        // Если произошла ошибка - отлавливаем
                     catch (Exception ex)
                     {
                         Console.WriteLine("MakeRequest raised Exception: " + ex.Message);
@@ -337,46 +205,42 @@ namespace CustomHttpClient
                             Console.WriteLine("Response=null");
                         }
                         //Console.Readkey();,
+                        // Добавим ссылку в список "испорченных"
                         brokenOrDenyLinks.Add(currentWorkUri.ToString());
+                        // Переходим к след ссылке в очереди
                         continue;
                     }
+                    // Если добрались сюда - запрос выполнен успешно; Проверим нет ли переадресации
                     if (response.StatusCode == 301 && response.Headers.ContainsKey("Location".ToLower()))
                     {
+                        // Если есть - получаем новый аддресс
                         string newLocation = response.Headers["Location".ToLower()];
                         Uri outUri;
+                        // Пытаемся собрать URI
                         if(Uri.TryCreate(newLocation, UriKind.Absolute, out outUri))
                         {
-                            //
+                            // Если собрали - проверим чтобы такой ссылки еще не было в списке пройденных
                             if (!cachePageLinks.Contains(outUri))
                             {
                                 Console.WriteLine("Redirrect...");
+                                // Берем текущюю очередь - разворачиваем
                                 var temp = new Queue<Uri>(foundLinks.ToArray().Reverse());
+                                // Добавляем в конец очереди новый адрес на который нас переадресовали
                                 temp.Enqueue(outUri);
+                                // Снова разворачиваем очередь
                                 foundLinks = new Queue<Uri>(temp.Reverse());
                                 //Console.Readkey();,
+                                // Выставляем маркер переадрессации
                                 pageMoved = true;
+                                // Переходим к след. ссылке
                                 continue;
                             }
                         }
                     }
                     // Получаем все ссылки <a></a>
                     List<LinkItem> pageLinks = LinkFinder.Find(response.Body);
-                    /*using (StreamWriter parsed = new StreamWriter("FOUND_" + 
-                        currentWorkUri.Host.Replace('.', '_') + "_" + string.Join("_", currentWorkUri.Segments.ToArray().Reverse()).Replace('/', '_')))
-                    {
-                        foreach (var p in pageLinks)
-                        {
-                            parsed.WriteLine(p.Href);
-                        }
-                        parsed.Flush();
-                    }*/
                     // Получаем все ссылки на изображения <img>
                     List<LinkItem> imageLinks = LinkFinder.FetchImageLinks(response.Body);
-
-
-                    /*StreamWriter parsed2 = new StreamWriter("GOOD_" +
-                            currentWorkUri.Host.Replace('.', '_') + "_" + string.Join("_", currentWorkUri.Segments.ToArray().Reverse()).Replace('/', '_'));*/
-
                     // Просматриваем все собранные ссылки. Добавляем в очередь найденных ссылок для дальнейшей обработки
                     for (int p = 0; p < pageLinks.Count && !workEvent.WaitOne(PageDelay); ++p)
                     {
@@ -384,22 +248,18 @@ namespace CustomHttpClient
                         if (string.IsNullOrEmpty(pageLinks[p].Href) 
                             || brokenOrDenyLinks.Contains(pageLinks[p].Href)) continue;
                         string pageUri = pageLinks[p].Href;
-                        // Пробуем построить URI
-                        List<Uri> uriCandidats = TryToMakePageUri(currentWorkUri, pageUri);
-
-                        //Console.WriteLine("PAGE=" + pageUri);
-                        //Console.WriteLine(string.Join("\n", uriCandidats));
-                        //Console.WriteLine("COUNT=" + uriCandidats.Count); 
-                        //Console.ReadKey();
-
+                        // Пробуем построить возможные URI
+                        List<Uri> uriCandidats = LinkFinder.TryToMakePageUri(currentWorkUri, pageUri);
+                        // Если ничего не построили
                         if (uriCandidats == null || uriCandidats.Count == 0)
                         {
                             Console.WriteLine("Broken link=" + pageUri);
-                            //Console.Readkey();,
+                            // Заносим ссылку в список "испорченных ссылок"
                             brokenOrDenyLinks.Add(pageUri.ToString());
+                            // И переходим к след. ссылке
                             continue;
                         }
-                         
+                        // Иначе
                         // Перебираем все построенные ссылки
                         foreach (var u in uriCandidats)
                         {
@@ -432,180 +292,186 @@ namespace CustomHttpClient
                                 else
                                 {
                                     // Добавляем в очередь
-                                    foundLinks.Enqueue(u);
-                                    /*parsed2.WriteLine(u.ToString());
-                                    parsed2.Flush();*/
+                                    foundLinks.Enqueue(u);      
                                 }
                             }
                         }
                         
                     }
-                    //parsed2.Close();
+                    // Текущее количество ссылок для обработки
                     Console.WriteLine("LINKS count=" + foundLinks.Count);
-
+                    // Выводим ссылки 
                     Invoke(new Action(() =>
-                        {
-                            txtQueue.Clear();
-                            txtQueue.AppendText(string.Join(Environment.NewLine, foundLinks));
-                            txtQueue.AppendText(Environment.NewLine + foundLinks.Count + Environment.NewLine);
-                        }));
-
-                    //Console.ReadKey();
+                    {
+                        // Очищаем окно вывода очереди ссылок
+                        txtQueue.Clear();
+                        // Добавляем все ссылки
+                        txtQueue.AppendText(string.Join(Environment.NewLine, foundLinks));
+                        // Добавим в конце текущее количество ссылок для обработки
+                        txtQueue.AppendText(Environment.NewLine + "Ожидает обработки: " + foundLinks.Count + Environment.NewLine);
+                    }));
+                    // Секция отсеивания ссылок на изображения
                     Queue<LinkItem> foundImages = new Queue<LinkItem>(imageLinks);
                     Console.WriteLine(new string('-', 60));
                     Console.WriteLine(new string('-', 30) + "IMAGES" + new string('-', 30));
                     Console.WriteLine(new string('-', 60));
-                    // Обрабатываем ссылки на изображения 
-                    //for (int img = 0; img < imageLinks.Count && !workEvent.WaitOne(500); ++img)
+                    // Обрабатываем построенную очередь ссылок на изображения 
                     while (foundImages.Count > 0 && !workEvent.WaitOne(ImageDelay))
                     {
-                        //Console.ReadKey();
+                        // Получаем след. ссылку
                         LinkItem nextImgLink = foundImages.Dequeue();
                         string imgSize = string.Empty;
-                        string imgUri = nextImgLink.Href;//imageLinks[img].Href;
+                        string imgUri = nextImgLink.Href;
 
                         // Пробуем построить URI
-                        List<Uri> imgCandidats = TryToMakeImgUri(currentWorkUri, imgUri);
-                        //Console.ReadKey();
-                        if (imgCandidats == null || imgCandidats.Count == 0)
+                        Uri imgCandidate = LinkFinder.TryToMakeImgUri(currentWorkUri, imgUri);
+                        // Если ссылку не удалось построить
+                        if (imgCandidate == null)
                         {
+                            // Выводим сообщение
                             Console.WriteLine("Broken img uri: " + imgUri);
-                            //Console.Readkey();,
+                            // Записываем ссылку в список "испорченых"
                             brokenOrDenyLinks.Add(imgUri.ToString());
+                            // Переходим к след. ссылке в очереди
                             continue;
                         }
-
-                        for (int candidateImgID = 0; candidateImgID < imgCandidats.Count && !workEvent.WaitOne(ImageDelay); ++candidateImgID)
+                        // Если ссылка уже обрабатывалась
+                        if (cacheImgLinks.Contains(imgCandidate.PathAndQuery)
+                            // или записана как поврежденная
+                            || brokenOrDenyLinks.Contains(imgCandidate.ToString())
+                            // Или ссылка по каким то причинам начинается с "mailto"
+                            || imgCandidate.ToString().StartsWith("mailto"))
                         {
-                            if (cacheImgLinks.Contains(imgCandidats[candidateImgID].PathAndQuery) 
-                                || brokenOrDenyLinks.Contains(imgCandidats[candidateImgID].ToString())
-                                || imgCandidats[candidateImgID].ToString().StartsWith("mailto")) continue;
+                            // Переходим к след. ссылке
+                            continue;
+                        }
+                        // Добавляем ссылку в список обработанных
+                        cacheImgLinks.Add(imgCandidate.PathAndQuery);
 
-                            cacheImgLinks.Add(imgCandidats[candidateImgID].PathAndQuery);
+                        // Делаем запрос на получение заголовка изображения
+                        Response imgResponse = null;
+                        try
+                        {
+                            Console.WriteLine(new String('-', 60));
+                            Console.WriteLine("Request: GET " + imgCandidate);
+                            Console.WriteLine(new String('-', 60));
 
-                            Response imgResponse = null;
-                            try
+                            txtLogBox.Invoke(new Action(() =>
                             {
-                                Console.WriteLine(new String('-', 60));
-                                Console.WriteLine("Request: GET " + imgCandidats[candidateImgID]);
-                                Console.WriteLine(new String('-', 60));
+                                txtLogBox.AppendText("HEAD " + imgCandidate + Environment.NewLine);
+                            }));
+                            // Запрос
+                            imgResponse = client.MakeRequest(imgCandidate, false);
+                        }
+                            // Отлавливаем ошибки
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("MakeRequest raised Exception: " + ex.Message);
+                            Console.WriteLine(imgCandidate);
+                            //Console.ReadKey();
+                            Log(new string('-', 30) + "Error" + new string('-', 30) + Environment.NewLine, tw);
+                            Log(imgCandidate + Environment.NewLine, tw);
+                            Log(new string('-', 60) + Environment.NewLine, tw);
+                        }
+                        // Если запрос не удачен
+                        if (imgResponse == null 
+                            || !(imgResponse.StatusCode == 200 || imgResponse.StatusCode == 301) 
+                            || !imgResponse.Headers.ContainsKey("Content-Length".ToLower()))
+                        {
 
-                                txtLogBox.Invoke(new Action(() =>
+                            if (imgResponse != null)
+                            {
+                                if(imgResponse.StatusCode == 404)
                                 {
-                                    txtLogBox.AppendText("HEAD " + imgCandidats[candidateImgID] + Environment.NewLine);
-                                }));
-                                imgResponse = client.MakeRequest(imgCandidats[candidateImgID], false);
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine("MakeRequest raised Exception: " + ex.Message);
-                                Console.WriteLine(imgCandidats[candidateImgID]);
-                                //Console.ReadKey();
-                                Log(new string('-', 30) + "Error" + new string('-', 30) + Environment.NewLine, tw);
-                                Log(imgCandidats[candidateImgID] + Environment.NewLine, tw);
-                                Log(new string('-', 60) + Environment.NewLine, tw);
-                            }
-
-
-                            if (imgResponse == null 
-                                || !(imgResponse.StatusCode == 200 || imgResponse.StatusCode == 301) 
-                                || !imgResponse.Headers.ContainsKey("Content-Length".ToLower()))
-                            {
-
-                                if (imgResponse != null)
-                                {
-                                    if(imgResponse.StatusCode == 404)
-                                    {
-                                        Console.WriteLine("404");
-                                        //Console.ReadKey();
-                                    }
-                                    Console.WriteLine("StatusCode=" + imgResponse.StatusCode);
-                                    Console.WriteLine("Content-Length=" + (imgResponse.Headers.ContainsKey("Content-Length".ToLower())
-                                        ? imgResponse.Headers["Content-Length".ToLower()] : "null"));
+                                    Console.WriteLine("404");
+                                    //Console.ReadKey();
                                 }
-                                else
-                                {
-                                    Console.WriteLine("Response=null");
-                                }
-                                //Console.Readkey();,
-                                brokenOrDenyLinks.Add(imgCandidats[candidateImgID].ToString());
-                                continue;
-                            }
-                            if (imgResponse.StatusCode == 301 && imgResponse.Headers.ContainsKey("Location".ToLower()))
-                            {
-                                string newLocation = imgResponse.Headers["Location".ToLower()];
-                                Uri outUri;
-                                if (Uri.TryCreate(newLocation, UriKind.Absolute, out outUri))
-                                {
-                                    Console.WriteLine("IMG Redirrect...");
-                                    //foundLinks.Enqueue(outUri);
-                                    LinkItem li = new LinkItem();
-                                    li.Href = outUri.ToString();
-                                    li.Text = nextImgLink.Text;
-
-                                    var temp = new Queue<LinkItem>(foundImages.ToArray().Reverse());
-                                    temp.Enqueue(li);
-
-                                    foundImages = new Queue<LinkItem>(temp.Reverse());
-                                    
-
-
-                                    //foundImages.Enqueue(li);
-                                    //Console.Readkey();,
-                                    continue;
-                                }
-                            }
-
-
-                            imgSize = imgResponse.Headers["Content-Length".ToLower()];
-
-                            if (Client.GetIpAddress(imgCandidats[candidateImgID].Host).Equals(client.IP))
-                            {
-                                serverImg++;
-                                listViewServer.Invoke(new Action(() =>
-                                {
-                                    ListViewItem lvi = new ListViewItem();
-                                    lvi.Text = nextImgLink.Text;//imageLinks[img].Text;
-                                    lvi.SubItems.Add(imgCandidats[candidateImgID].ToString());
-                                    lvi.SubItems.Add(imgSize);
-
-                                    listViewServer.Items.Add(lvi);
-
-                                    lblServer.Text = serverImg.ToString();
-                                }));
+                                Console.WriteLine("StatusCode=" + imgResponse.StatusCode);
+                                Console.WriteLine("Content-Length=" + (imgResponse.Headers.ContainsKey("Content-Length".ToLower())
+                                    ? imgResponse.Headers["Content-Length".ToLower()] : "null"));
                             }
                             else
                             {
-                                outboundImg++;
-                                listViewOutbound.Invoke(new Action(() =>
-                                {
-                                    ListViewItem lvi = new ListViewItem();
-                                    lvi.Text = nextImgLink.Text;//imageLinks[img].Text;
-                                    lvi.SubItems.Add(imgCandidats[candidateImgID].ToString());
-                                    lvi.SubItems.Add(imgSize);
-
-                                    listViewOutbound.Items.Add(lvi);
-
-                                    lblOutbound.Text = outboundImg.ToString();
-                                }));
+                                Console.WriteLine("Response=null");
                             }
-
-                            imageDone.WriteLine(imgCandidats[candidateImgID]);
-                            imageDone.Flush();
+                            // Помещаем ссылку в список испорченных
+                            brokenOrDenyLinks.Add(imgCandidate.ToString());
+                            // К след. ссылке
+                            continue;
                         }
+                        // Если сервер задал переадресацию
+                        if (imgResponse.StatusCode == 301 && imgResponse.Headers.ContainsKey("Location".ToLower()))
+                        {
+                            string newLocation = imgResponse.Headers["Location".ToLower()];
+                            Uri outUri;
+                            if (Uri.TryCreate(newLocation, UriKind.Absolute, out outUri))
+                            {
+                                Console.WriteLine("IMG Redirrect...");
+
+                                LinkItem li = new LinkItem();
+                                li.Href = outUri.ToString();
+                                li.Text = nextImgLink.Text;
+                                // Разворачиваем очередь
+                                var temp = new Queue<LinkItem>(foundImages.ToArray().Reverse());
+                                // Помещаем новую ссылку
+                                temp.Enqueue(li);
+                                // Снова вернем очередь в прежний вид но в начале будет наш адрес переадресации
+                                foundImages = new Queue<LinkItem>(temp.Reverse());                                  
+                                // Переходим к след. ссылке (как раз след. будет ссылкой переадресации)
+                                continue;
+                            }
+                        }
+                        // Добрались сюда - получаем размер изображ.
+                        imgSize = imgResponse.Headers["Content-Length".ToLower()];
+                        // Определяем ип адрес хоста, если внутри серверная ссылка - запишем в один список иначе в другой
+                        if (Client.GetIpAddress(imgCandidate.Host).Equals(client.IP))
+                        {
+                            serverImg++;
+                            listViewServer.Invoke(new Action(() =>
+                            {
+                                ListViewItem lvi = new ListViewItem();
+                                lvi.Text = nextImgLink.Text;//imageLinks[img].Text;
+                                lvi.SubItems.Add(imgCandidate.ToString());
+                                lvi.SubItems.Add(imgSize);
+
+                                listViewServer.Items.Add(lvi);
+
+                                lblServer.Text = serverImg.ToString();
+                            }));
+                        }
+                        else
+                        {
+                            outboundImg++;
+                            listViewOutbound.Invoke(new Action(() =>
+                            {
+                                ListViewItem lvi = new ListViewItem();
+                                lvi.Text = nextImgLink.Text;//imageLinks[img].Text;
+                                lvi.SubItems.Add(imgCandidate.ToString());
+                                lvi.SubItems.Add(imgSize);
+
+                                listViewOutbound.Items.Add(lvi);
+
+                                lblOutbound.Text = outboundImg.ToString();
+                            }));
+                        }
+                        // Записываем в лог файл новую обработанную ссылку на изображение
+                        imageDone.WriteLine(imgCandidate);
+                        imageDone.Flush();
                     }
                     // Ссылка обработана
                     Console.WriteLine("Обработка [" + currentWorkUri + "] ссылки завершена.");
+                    // Запишем в лог файл ссылку на страницу которую только что обработали
                     pageDone.WriteLine(currentWorkUri);
                     pageDone.Flush();
-                    //Console.Readkey();,
                 }
 
             }
+                // Отлавливаем ошибки
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message + Environment.NewLine + ex.StackTrace + Environment.NewLine);
             }          
+                // По завершению не забываем закрыть потоки которые открывали для лог файлов
             finally
             {
                 if (pageDone != null)
@@ -614,6 +480,7 @@ namespace CustomHttpClient
                     imageDone.Close();
             }
             
+            // Вернем в прежний вид элементы управления
             Invoke(new Action(() =>
             {
                 btnStart.Enabled = true;
@@ -621,6 +488,7 @@ namespace CustomHttpClient
                 txtBoxUrl.Enabled = true;
                 txtBoxPort.Enabled = true;
             }));
+            // Помечаем выполнение завершено (отслеживаем это событие при закрытии приложения)
             threadDone.Set();
             MessageBox.Show("Done");
         }
@@ -629,19 +497,19 @@ namespace CustomHttpClient
         {
             try
             {
+                // Сбрасываем события
                 workEvent.Reset();
                 threadDone.Reset();
+                // Создаем новый поток
                 workrerThread = new Thread(WorkerMethod);
-                
+                // Получаем данные адреса
                 string uri = txtBoxUrl.Text.Trim();
                 string ipaddr = txtBoxUrl.Text.Trim();
                 int port = int.Parse(txtBoxPort.Text);
 
                 if (!uri.Contains("http://"))
                     uri = "http://" + uri;
-
-
-
+                // Запускаем поток для выполнения передав в качестве аргумента построенный URI
                 workrerThread.Start(new Uri(uri));                 
             }
             catch (Exception ex)
@@ -697,9 +565,6 @@ namespace CustomHttpClient
                 string ipAddr = text;
                 if (!text.Contains("http://"))
                     isUri = "http://" + isUri;
-
-                //Uri outUri = null;
-                //IPAddress outIP = null;
 
                 Regex ValidIpAddressRegex = new Regex(@"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
                 Regex ValidHostnameRegex = new Regex(@"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$");

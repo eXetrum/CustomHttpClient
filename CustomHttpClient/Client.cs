@@ -40,8 +40,6 @@ namespace CustomHttpClient
 
         // Хендлеры событий: "данные получены", "клиент отсоединен"
         //////////////// Делегаты событий ////////////////
-        // "Соединение установлено"
-        public delegate void ConnectionEstablishedHandler(Client sender, EndPoint remoteEP);
         // "Данные отправлены"
         public delegate void DataSendEventHandler(Client sender, string data);
         // "Данные получены"
@@ -49,7 +47,6 @@ namespace CustomHttpClient
         // "Соединение разорвано"
         public delegate void DisconnectedEventHandler(Client sender);
 
-        public event ConnectionEstablishedHandler Connected;
         public event DisconnectedEventHandler Disconnected;        
         public event DataReceivedEventHandler Received;
         public event DataSendEventHandler Sended;
@@ -72,33 +69,23 @@ namespace CustomHttpClient
         public Dictionary<String, String> Headers { get; set; }
         // Клиентский сокет
         private Socket clientSocket;
-        private IPEndPoint remoteEP;
+        public IPAddress IP;
         private Encoding encoding;
-
-        private static Response response;
+        //private static Response response;
 
         public static string AcceptPage = "text/html,application/xhtml+xml,text/plain,application/xml;q=0.9";//,*/*;q=0.8";
         public static string AcceptImage = "image/gif, image/jpeg, image/pjpeg, image/png, */*";
-
+        // Получить объект IPAddress по url строке или по строке айпи адреса
         public static IPAddress GetIpAddress(string tryParseThis)
         {
-            try
-            {
-                return Dns.GetHostEntry(IPAddress.Parse(tryParseThis)).AddressList[0];
-
-            }
+            try { return Dns.GetHostEntry(IPAddress.Parse(tryParseThis)).AddressList[0]; }
             catch { }
 
-            try
-            {
-                return Dns.GetHostEntry(tryParseThis).AddressList[0];
-            }
+            try { return Dns.GetHostEntry(tryParseThis).AddressList[0]; }
             catch { }
 
             return null;
         }
-
-        public IPAddress IP;
 
         // Конструктор клиента, принимает адрес удаленного узла и используемый сервером порт (по умолчанию задаем 80)
         public Client(Uri remoteUri, int port = 80)
@@ -117,16 +104,16 @@ namespace CustomHttpClient
 
             Headers.Add("Connection", "Close");
             //Headers.Add("Connection", "Keep-Alive");
-            //Headers.Add("Accept-Charset", "utf-8;");
             Headers.Add("Accept-Encoding", "gzip;q=0,deflate,sdch");
 
-            Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate");
-            Headers.Add("Pragma", "no-cache");
-            Headers.Add("Expires", "0");
+            //Headers.Add("Accept-Charset", "utf-8;");
+            //Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate");
+            //Headers.Add("Pragma", "no-cache");
+            //Headers.Add("Expires", "0");
 
             IPHostEntry ipHostInfo = Dns.GetHostEntry(Host);
+            // Получаем ип аддресс связанный с хостом
             IP = ipHostInfo.AddressList[0];
-            remoteEP = new IPEndPoint(IP, Port);
             // Кодировка
             encoding = Encoding.UTF8;
         }        
@@ -134,28 +121,16 @@ namespace CustomHttpClient
         
         public Response MakeRequest(Uri uri, bool page = true)
         {
+            // По умолчанию задаем кодировку
             encoding = Encoding.UTF8;
-            response = new Response();
-            connectDone = new ManualResetEvent(false);
+            // Содаем объект "Ответ сервер"
+            Response response = new Response();
+            // Создаем новые события
             sendDone = new ManualResetEvent(false);
-            receiveDone = new ManualResetEvent(false);
             disconnectDone = new ManualResetEvent(false);
-            
             // Создаем потоковый TCP сокет
             clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             //clientSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, 30000);
-            StateObject so = new StateObject();
-            so.workSocket = clientSocket;
-
-            
-            if (uri.Port == 443)
-            {
-                Console.WriteLine("SSL found");
-                //Console.ReadKey();
-            }
-
-            //IPHostEntry ipHostInfo = Dns.GetHostEntry(uri.Host);
-            //IPAddress ipAddress = ipHostInfo.AddressList[0];
             IPAddress ipAddress = GetIpAddress(uri.Host);
             IPEndPoint remoteEP = new IPEndPoint(ipAddress, Port);
 
@@ -164,12 +139,10 @@ namespace CustomHttpClient
             try
             {
                 // Соединение
-                /*clientSocket.BeginConnect(remoteEP,
-                    new AsyncCallback(ConnectCallback), clientSocket);
-                connectDone.WaitOne();*/
                 clientSocket.Connect(remoteEP);
-                // Формирование заголовков
+                // Формирование заголовков для отправки
                 string headers = string.Empty;
+                // Если запрашиваем страницу
                 if (page)
                 {
                     headers = 
@@ -177,6 +150,7 @@ namespace CustomHttpClient
                         + "Host: " + uri.Host + CRLF
                         + "Accept: " + AcceptPage + CRLF;
                 }
+                    // Если запросили изображение
                 else
                 {
                     headers =
@@ -184,11 +158,12 @@ namespace CustomHttpClient
                         + "Host: " + uri.Host + CRLF
                         + "Accept: " + AcceptImage + CRLF;
                 }
-
+                // Если заданы поля юзер агент и рефер - добавляем к заголовкам
                 if (UserAgent != null)
                     headers += "User-Agent: " + UserAgent + CRLF;
                 if (Referer != null)
                     headers += "Referer: " + Referer + CRLF;
+
 
                 foreach (var h in Headers)
                     headers += h.Key + ": " + h.Value + CRLF;
@@ -200,6 +175,7 @@ namespace CustomHttpClient
                 // Отправка запроса
                 Send(clientSocket, headers);
                 // Ожидаем завершения отправки
+                Console.WriteLine("Send waitone...");
                 sendDone.WaitOne();
                 // Буфер приема
                 byte[] buffer = new byte[1];
@@ -292,7 +268,7 @@ namespace CustomHttpClient
             // Если произошла ошибка и мы не вернули ранее ответ - вернем null
             return null;
         }
-        // Поиск разделителя
+        // Поиск разделителя (Используем для поиска CRLF, или CRLF + CRLF)
         int FindEOF(byte[] data, byte [] eof)
         {
             for (int i = 0; i < data.Length - eof.Length + 1; ++i)
@@ -303,148 +279,40 @@ namespace CustomHttpClient
                     else break;
                 if (count == eof.Length) return i;
             }
-
+            // Разделитель не найден
             return -1;
-        }
-
-        private void ConnectCallback(IAsyncResult ar)
-        {
-            try
-            {
-                // Retrieve the socket from the state object.
-                Socket clientSocket = (Socket)ar.AsyncState;
-
-                // Complete the connection.
-                clientSocket.EndConnect(ar);
-
-                Console.WriteLine("Socket connected to {0}",
-                    clientSocket.RemoteEndPoint.ToString());
-
-
-                if (Connected != null)
-                    Connected(this, clientSocket.RemoteEndPoint);                
-                // Signal that the connection has been made.
-                connectDone.Set();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-                //Console.ReadKey();
-            }
         }
 
         private void Send(Socket client, String data)
         {
-            // Convert the string data to byte data using ASCII encoding.
-
+            // Кодируем строку используя выбранную кодировку и преобразуем в массив байт
             byte[] byteData = encoding.GetBytes(data);
-            //byte[] byteData = Encoding.UTF8.GetBytes(data);
-
-            // Begin sending the data to the remote device.
+            // Начинаем отправку данных
             client.BeginSend(byteData, 0, byteData.Length, 0,
                 new AsyncCallback(SendCallback), client);
         }
 
         private void SendCallback(IAsyncResult ar)
         {
-            try
+            // Получаем клиентский сокет
+            Socket client = (Socket)ar.AsyncState;
+            // Завершаем отправку данных
+            int bytesSent = client.EndSend(ar);
+            // Выводим количество отправленных данных
+            Console.WriteLine("Sent {0} bytes to server.", bytesSent);
+            // Если задан обработчик события "данные получены"
+            if (Sended != null)
             {
-                // Retrieve the socket from the state object.
-                Socket client = (Socket)ar.AsyncState;
-
-                // Complete sending the data to the remote device.
-                int bytesSent = client.EndSend(ar);
-                Console.WriteLine("Sent {0} bytes to server.", bytesSent);
-
-                if (Sended != null)
-                {
-                    string rawHeaders = string.Empty;
-                    foreach (var header in Headers)
-                        rawHeaders += header.Key + ": " + header.Value + CRLF;
-                    rawHeaders += CRLF;
-                    Sended(this, rawHeaders);
-                }
-                // Signal that all bytes have been sent.
-                sendDone.Set();
+                // Собираем заголовки
+                string rawHeaders = string.Empty;
+                foreach (var header in Headers)
+                    rawHeaders += header.Key + ": " + header.Value + CRLF;
+                rawHeaders += CRLF;
+                // Передаем для дальнейшего вывода 
+                Sended(this, "Response headers: " + Environment.NewLine + rawHeaders);
             }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-                //Console.ReadKey();
-            }
-        }
-
-        private void Receive(Socket client)
-        {
-            try
-            {
-                Console.WriteLine("Receive start...");
-                // Create the state object.
-                StateObject state = new StateObject();
-                state.workSocket = client;
-
-                // Begin receiving the data from the remote device.
-                client.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
-                    new AsyncCallback(ReceiveCallback), state);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-                //Console.ReadKey();
-            }
-        }
-
-        
-
-        private void ReceiveCallback(IAsyncResult ar)
-        {
-            try
-            {
-                // Retrieve the state object and the client socket 
-                // from the asynchronous state object.
-                StateObject state = (StateObject)ar.AsyncState;
-                Socket client = state.workSocket;
-
-                // Read data from the remote device.
-                int bytesRead = client.EndReceive(ar);
-
-                if (bytesRead > 0)
-                {
-                    // There might be more data, so store the data received so far.
-                    state.receivedData.AddRange(state.buffer);
-
-
-                    //state.sb.Append(encoding.GetString(state.buffer, 0, bytesRead));
-
-                    // Get the rest of the data.
-                    client.BeginReceive(state.buffer, 0, StateObject.BufferSize, 0,
-                        new AsyncCallback(ReceiveCallback), state);
-                }
-                else
-                {
-                    // All the data has arrived; put it in response.
-                    if (state.receivedData.Count > 1)
-                    {
-                        string rawData = encoding.GetString(state.receivedData.ToArray());
-                        
-
-                        response = new Response(rawData);
-                        if (Received != null)
-                            Received(null, response.RawHeaders());
-
-                        //response = state.sb.ToString();
-                        //Console.WriteLine("Response: " + state.sb.ToString());
-                        
-                    }
-                    // Signal that all bytes have been received.
-                    receiveDone.Set();
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-                //Console.ReadKey();
-            }
+            // Сигнализируем о завершении отправки данных
+            sendDone.Set();
         }
 
         public void Close()
@@ -468,18 +336,17 @@ namespace CustomHttpClient
         {
             try
             {
-                // Complete the disconnect request.
+                // Завершаем отключение
                 Socket client = (Socket)ar.AsyncState;
                 client.EndDisconnect(ar);
-
+                // Если задан обработчик события "отсоединен"
                 if (Disconnected != null)
                 {
                     Disconnected(this);
                     Console.WriteLine("Disconnected");
                     Console.WriteLine(new string('-', 40));
-                    //connectDone.Reset();
                 }
-                // Signal that the disconnect is complete.
+                // Сигнализируем завершение разрыва соединения
                 disconnectDone.Set();
             }
             catch {}
