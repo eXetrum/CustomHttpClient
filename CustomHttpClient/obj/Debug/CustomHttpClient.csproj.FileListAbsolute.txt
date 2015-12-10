@@ -6,4 +6,3 @@ D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\Cust
 D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.csproj.GenerateResource.Cache
 D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.exe
 D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.pdb
-D:\MS Visual Studio\Projects\C#\CustomHttpClient\CustomHttpClient\obj\Debug\CustomHttpClient.csprojResolveAssemblyReference.cache

@@ -81,7 +81,7 @@
             this.txtBoxUrl.Name = "txtBoxUrl";
             this.txtBoxUrl.Size = new System.Drawing.Size(99, 20);
             this.txtBoxUrl.TabIndex = 0;
-            this.txtBoxUrl.Text = "cesharp.narod.ru";
+            this.txtBoxUrl.Text = "ssau.ru";
             this.txtBoxUrl.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.txtBoxUrl.TextChanged += new System.EventHandler(this.txtBoxUrl_TextChanged);
             // 
@@ -160,6 +160,7 @@
             this.listViewServer.TabIndex = 6;
             this.listViewServer.UseCompatibleStateImageBehavior = false;
             this.listViewServer.View = System.Windows.Forms.View.Details;
+            this.listViewServer.DoubleClick += new System.EventHandler(this.listViewServer_DoubleClick);
             // 
             // colHeaderTitle
             // 
@@ -169,7 +170,6 @@
             // colHeaderHref
             // 
             this.colHeaderHref.Text = "Ссылка";
-            this.colHeaderHref.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.colHeaderHref.Width = 480;
             // 
             // colHeaderSize
@@ -204,7 +204,6 @@
             // colRemoteHref
             // 
             this.colRemoteHref.Text = "Ссылка";
-            this.colRemoteHref.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.colRemoteHref.Width = 480;
             // 
             // colRemoteSize

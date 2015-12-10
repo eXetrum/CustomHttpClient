@@ -210,11 +210,8 @@ namespace CustomHttpClient
 
         private static Response response;
 
-
-        public static string AcceptPage = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
-        public static string AcceptImage = "image/gif, image/jpeg, image/pjpeg, image/png, */*";
-
-        
+        public static string AcceptPage = "text/html,application/xhtml+xml,text/plain,application/xml;q=0.9";//,*/*;q=0.8";
+        public static string AcceptImage = "image/gif, image/jpeg, image/pjpeg, image/png, */*";         
 
         // Конструктор клиента, принимает адрес удаленного узла и используемый сервером порт (по умолчанию задаем 80)
         public Client(Uri remoteUri, int port = 80)
@@ -233,7 +230,7 @@ namespace CustomHttpClient
 
             Headers.Add("Connection", "Close");
             //Headers.Add("Connection", "Keep-Alive");
-            Headers.Add("Accept-Charset", "utf-8;");
+            //Headers.Add("Accept-Charset", "utf-8;");
             Headers.Add("Accept-Encoding", "gzip;q=0,deflate,sdch");
 
             Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -245,54 +242,11 @@ namespace CustomHttpClient
             remoteEP = new IPEndPoint(ipAddress, Port);
             // Кодировка
             encoding = Encoding.UTF8;
-        }
-
-        //static readonly int[] Empty = new int[0];
-
-        //public static int[] Locate(this byte[] self, byte[] candidate)
-        //{
-        //    if (IsEmptyLocate(self, candidate))
-        //        return Empty;
-
-        //    var list = new List<int>();
-
-        //    for (int i = 0; i < self.Length; i++)
-        //    {
-        //        if (!IsMatch(self, i, candidate))
-        //            continue;
-
-        //        list.Add(i);
-        //    }
-
-        //    return list.Count == 0 ? Empty : list.ToArray();
-        //}
-
-        //static bool IsMatch(byte[] array, int position, byte[] candidate)
-        //{
-        //    if (candidate.Length > (array.Length - position))
-        //        return false;
-
-        //    for (int i = 0; i < candidate.Length; i++)
-        //        if (array[position + i] != candidate[i])
-        //            return false;
-
-        //    return true;
-        //}
-
-        //static bool IsEmptyLocate(byte[] array, byte[] candidate)
-        //{
-        //    return array == null
-        //        || candidate == null
-        //        || array.Length == 0
-        //        || candidate.Length == 0
-        //        || candidate.Length > array.Length;
-        //}
-
-
-        
+        }        
 
         public Response MakeRequest(Uri uri, bool page = true)
         {
+            encoding = Encoding.UTF8;
             response = new Response();
             connectDone = new ManualResetEvent(false);
             sendDone = new ManualResetEvent(false);
@@ -365,8 +319,32 @@ namespace CustomHttpClient
                     if (FindEOF(headerData.ToArray(), new byte[] { 13, 10, 13, 10 }) != -1)
                         break;
                 }
+
                 // Добавляем заголовки к ответу
                 response.AddHeaders(encoding.GetString(headerData.ToArray()));
+
+
+                if (response.Headers.ContainsKey("Content-Type".ToLower()))
+                {
+                    string header = response.Headers["Content-Type".ToLower()];
+                    int indx = header.IndexOf("charset=");
+                    if (indx != -1)
+                    {
+                        string charset = header.Substring(indx + "charset=".Length);
+                        Console.WriteLine("charset=" + charset);
+                        try
+                        {
+                            encoding = Encoding.GetEncoding(charset);
+                            Console.WriteLine(encoding.EncodingName);
+                            //Console.ReadKey();
+                        }
+                        catch (Exception errorEncoding)
+                        {
+                            Console.WriteLine("MakeRequest, getcharset error=" + errorEncoding.Message);
+                        }
+                    }
+                }
+
                 Console.WriteLine("Received headers size=" + headerData.Count);
                 Console.WriteLine(new string('-', 40));
                 Console.WriteLine(encoding.GetString(headerData.ToArray()));               
@@ -415,50 +393,9 @@ namespace CustomHttpClient
             // Если произошла ошибка и мы не вернули ранее ответ - вернем null
             return null;
         }
-
-        List<byte> ReadChunk(ref Socket socket)
-        {   
-            List<byte> chunk = new List<byte>();   
-            List<byte> line = ReadLine(socket);             
-            //List<byte> line = new List<byte>();
-            byte[] buffer = new byte[1];
-            //bool endFound = false;
-
-            string row = encoding.GetString(line.ToArray());
-            string hex = row.Remove(row.IndexOf(CRLF));
-            int chunkSize = Convert.ToInt32(hex, 16);
-            Console.WriteLine("Chunk size=" + chunkSize);
-            buffer = new byte[1];
-            int received = 0;
-            int actualSize = 0;
-            while(actualSize < chunkSize)// && (received = socket.Receive(buffer)) >= 0 )
-            {
-                received = socket.Receive(buffer);
-                actualSize += received;
-                chunk.AddRange(buffer);
-            }
-            Console.WriteLine("Chunk size = {0}, Actual={1}", chunkSize, actualSize);
-            return chunk;
-        }
-
-        List<byte> ReadLine(Socket socket)
-        {
-            List<byte> line = new List<byte>();
-            byte[] buffer = new byte[1];
-            //bool endFound = false;
-            int byteRead = 0;
-
-            while ((byteRead = clientSocket.Receive(buffer)) >= 0)// && !endFound)
-            {
-                line.AddRange(buffer);
-                if (FindEOF(line.ToArray(), new byte[] { 13, 13 }) != -1) break;
-            }
-            return line;
-        }
-
+        // Поиск разделителя
         int FindEOF(byte[] data, byte [] eof)
         {
-            //byte[] eof = new byte []{ 13, 10 };
             for (int i = 0; i < data.Length - eof.Length + 1; ++i)
             {
                 int count = 0;
